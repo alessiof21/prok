@@ -1,11 +1,14 @@
 const express = require('express')
 const path = require('path');
 const db = require('./db/db');
+
+const db = require('./db/database');
+
 const bodyParser = require('body-parser');
 
 const cache = require('./ex1/cache');
 
-const main = require('./ex1/ex1.js');
+//const main = require('./ex1/ex1.js');
 
 
 const app = express();
@@ -22,9 +25,9 @@ app.get('/', async (req, res) => {
 });
 
 app.post('/', async (req, res) => {
-    const arr = main(req.body);
+    //const arr = main(req.body);
     //cache.updateDb();
-    cache.emit('changeDb');
+    //cache.emit('changeDb');
     res.send(arr)
 });
 

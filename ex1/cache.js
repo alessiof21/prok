@@ -4,13 +4,13 @@ const db = require('../db/db');
 
 
 
-class Cache extends EventEmitter {
+class Database extends EventEmitter {
     constructor() { // Используем принцип singleton
         super();
-        if (Cache._instance) {
-            return Cache._instance;
+        if (Database._instance) {
+            return Database._instance;
         } else {
-            Cache._instance = this;
+            Database._instance = this;
         }
     }
     
@@ -53,14 +53,67 @@ class Cache extends EventEmitter {
         return true; // Параметры фильтра не изменились
     } 
 
-    async filterList(date, status, teachersId, studentsCount) { // Делаем фильтрацию по введеным параметрам
+    async filterList(params) { // Делаем фильтрацию по введеным параметрам
+        for (const key in this.list.params) { // Обновляем параметры фильтрации
+            this.list.params[key] = params[key];
+        }
+        await this.filterDate()
+            .then(async afterDate => {
+                await this.filterStatus(afterDate)
+            })
+            .then(async afterStatus => {
+                await filterTeachersId(afterStatus)
+            })
+            .then(async afterTeachers => {
+                await this.filterStudentsCount(afterTeachers)
+            })
+            .then(afterStudents => {
+                this.list.value = afterStudents.slice();
+            })
+        return;
+    }
+
+    async filterDate() {
+        return new Promise(async resolve => {
+            if (this.list.params.date !== null) { //
+                const redQuery = await this.query.where((builder) => {
+                    if (this.params.date.length > 10) {
+                        const date1 = this.params.date.slice(0,10);
+                        const date2 = this.params.date.slice(11)
+                        builder
+                            .where('date', '>=', date1)
+                            .andWhere('date', '<=', date2)
+                    } else {
+                        builder
+                            .where('date', this.params.date.length)
+                    }
+                })
+                resolve(redQuery);
+            }
+            resolve(this.query);
+        })
 
     }
+
+    async filterStatus(query) {
+        return new Promise(async resolve => {
+            if (this.list.params.status !== null) {
+                const redQuery = await query.where('status', this.list.params.status);
+                resolve(redQuery);
+            }
+            resolve(query);
+        })
+
+    }
+
+    async filterTeachersId() {}
+
+    async filterStudentsCount() {}
 
     async getList({date, status, teachersId, studentsCount, page, lessons}) {
         await this.makeQuery(); // Делаем запрос к бд (либо запрос, либо берем кэш из прошлого запроса)
         if (!this.compareList()) { // Если параметры фильтра изменились, заново все отфильтровываем
-            await this.filterList();
+            await this.filterList({date, status, teachersId, studentsCount});
         }
         if (this.list.value === null || this.list.value.length === 0) { // Если ничего не найдено, вернем информацию с ошибкой
             return null;
@@ -113,7 +166,7 @@ class Cache extends EventEmitter {
     }
 }
 
-const cache = new Cache();
+const database = new Database();
 
 // Подписываеся на событие, которое будет ощищать кэш запроса при обновлении базы данных
 cache.on('changeDb', function() { 
